@@ -2,7 +2,7 @@ services:
   - type: web
     name: visapath-eoir-scraper
     runtime: node
-    buildCommand: apt-get install -y chromium && npm install
+    buildCommand: apt-get install -y chromium-browser chromium || true && npm install
     startCommand: node index.js
     envVars:
       - key: PUPPETEER_EXECUTABLE_PATH
