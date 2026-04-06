@@ -1,4 +1,14 @@
-const express=require('express'),puppeteer=require('puppeteer-core'),{Solver}=require('2captcha-ts'),app=express();app.use(express.json());const solver=new Solver(process.env.CAPTCHA_API_KEY);app.get('/',(req,res)=>res.json({status:'EOIR scraper running',version:'1.0.0'}));app.post('/lookup',async(req,res)=>{const{aNbr,nationality}=req.body;if(!aNbr||!nationality)return res.status(400).json({error:'aNbr and nationality required'});const digits=aNbr.replace(/[^0-9]/g,'');const normalized=digits.length===8?'0'+digits:digits.padStart(9,'0');if(normalized.length!==9)return res.status(400).json({error:'Invalid A-Number'});let browser;try{const chromePaths=['/usr/bin/chromium','/usr/bin/chromium-browser','/usr/bin/google-chrome','/usr/bin/google-chrome-stable'];
+const express=require('express'),puppeteer=require('puppeteer-core'),{Solver}=require('2captcha-ts'),app=express();app.use(express.json());const solver=new Solver(process.env.CAPTCHA_API_KEY);app.get('/',(req,res)=>res.json({status:'EOIR scraper running',version:'1.0.0'}));
+app.get('/debug',(req,res)=>{
+  const {execSync}=require('child_process');
+  let paths={};
+  ['/usr/bin/chromium','/usr/bin/chromium-browser','/usr/bin/google-chrome','/snap/bin/chromium'].forEach(p=>{
+    try{execSync('test -f '+p);paths[p]='EXISTS'}catch{paths[p]='missing'}
+  });
+  let which='';
+  try{which=execSync('which chromium || which chromium-browser || which google-chrome 2>/dev/null').toString().trim()}catch{}
+  res.json({paths,which,env:process.env.PUPPETEER_EXECUTABLE_PATH});
+});app.post('/lookup',async(req,res)=>{const{aNbr,nationality}=req.body;if(!aNbr||!nationality)return res.status(400).json({error:'aNbr and nationality required'});const digits=aNbr.replace(/[^0-9]/g,'');const normalized=digits.length===8?'0'+digits:digits.padStart(9,'0');if(normalized.length!==9)return res.status(400).json({error:'Invalid A-Number'});let browser;try{const chromePaths=['/usr/bin/chromium','/usr/bin/chromium-browser','/usr/bin/google-chrome','/usr/bin/google-chrome-stable'];
 const {execSync}=require('child_process');
 let chromePath=process.env.PUPPETEER_EXECUTABLE_PATH;
 if(!chromePath){for(const p of chromePaths){try{execSync('test -f '+p);chromePath=p;break}catch{}}}
