@@ -33,11 +33,14 @@ app.post('/lookup', async (req, res) => {
     });
 
     const page = await browser.newPage();
+    // Enable JavaScript explicitly
+    await page.setJavaScriptEnabled(true);
     // Hide automation
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
       window.chrome = { runtime: {} };
     });
+    await page.setViewport({ width: 1280, height: 800 });
     await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15');
 
     console.log('Loading ACIS no proxy...');
