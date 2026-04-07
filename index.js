@@ -1,5 +1,9 @@
 const express = require('express');
 const axios = require('axios');
+const { HttpsProxyAgent } = require('https-proxy-agent');
+
+const PROXY_URL = `http://${process.env.PROXY_LOGIN}:${process.env.PROXY_PASSWORD}@gw.dataimpulse.com:823`;
+const proxyAgent = new HttpsProxyAgent(PROXY_URL);
 const cheerio = require('cheerio');
 const { Solver } = require('2captcha-ts');
 
@@ -73,7 +77,8 @@ app.post('/lookup', async (req, res) => {
         'Accept': 'text/html,application/xhtml+xml',
         'Accept-Language': 'en-US,en;q=0.9',
       },
-      timeout: 15000,
+      httpsAgent: proxyAgent,
+      timeout: 20000,
     });
 
     const cookies = homeRes.headers['set-cookie']?.join('; ') || '';
@@ -111,6 +116,7 @@ app.post('/lookup', async (req, res) => {
         'Origin': 'https://acis.eoir.justice.gov',
         'Accept': 'text/html,application/xhtml+xml,*/*',
       },
+      httpsAgent: proxyAgent,
       timeout: 20000,
       maxRedirects: 5,
     });
