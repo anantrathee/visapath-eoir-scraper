@@ -27,6 +27,22 @@ async function launchBrowser(useProxy = true) {
 
 app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '7.0.0' }));
 
+app.get('/test-https', async (req, res) => {
+  let browser;
+  try {
+    browser = await launchBrowser(true);
+    const page = await browser.newPage();
+    await page.authenticate({ username: PROXY_USER, password: PROXY_PASS });
+    await page.goto('https://www.google.com', { timeout: 20000 });
+    const title = await page.title();
+    res.json({ success: true, title });
+  } catch(err) {
+    res.json({ success: false, error: err.message });
+  } finally {
+    if (browser) await browser.close();
+  }
+});
+
 app.get('/test-proxy', async (req, res) => {
   let browser;
   try {
