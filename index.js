@@ -27,6 +27,22 @@ async function launchBrowser(useProxy = true) {
 
 app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '7.0.0' }));
 
+app.get('/test-acis-noproxy', async (req, res) => {
+  let browser;
+  try {
+    browser = await launchBrowser(false);
+    const page = await browser.newPage();
+    await page.goto('https://acis.eoir.justice.gov/en/caseInformation/', { timeout: 20000 });
+    const title = await page.title();
+    const body = await page.evaluate(() => document.body.innerText.substring(0, 200));
+    res.json({ success: true, title, body });
+  } catch(err) {
+    res.json({ success: false, error: err.message });
+  } finally {
+    if (browser) await browser.close();
+  }
+});
+
 app.get('/test-https', async (req, res) => {
   let browser;
   try {
