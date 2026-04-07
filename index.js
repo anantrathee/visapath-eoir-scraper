@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 const solver = new Solver(process.env.CAPTCHA_API_KEY || 'dc371c50f5952790ad18e2617b7e9641');
 const PROXY_HOST = 'gw.dataimpulse.com:823';
-const PROXY_USER = '5928d06d6d0c3a97cb03__cr.us';
+const PROXY_USER = '5928d06d6d0c3a97cb03';
 const PROXY_PASS = '398ce2c56c9e1c67';
 
 async function launchBrowser(useProxy = true) {
