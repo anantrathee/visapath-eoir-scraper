@@ -1,13 +1,13 @@
 const express = require('express');
-const puppeteer = require('puppeteer-core');
-const chromium = require('@sparticuz/chromium');
+const puppeteer = require('puppeteer');
+
 const { Solver } = require('2captcha-ts');
 
 const app = express();
 app.use(express.json());
 const solver = new Solver(process.env.CAPTCHA_API_KEY || 'dc371c50f5952790ad18e2617b7e9641');
 
-app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '8.0.0' }));
+app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '9.0.0' }));
 
 app.post('/lookup', async (req, res) => {
   const { aNbr, nationality } = req.body;
@@ -17,16 +17,14 @@ app.post('/lookup', async (req, res) => {
 
   let browser;
   try {
-    const execPath = await chromium.executablePath();
-    console.log('v8 - NO PROXY - Chrome:', execPath);
-    
+    console.log('v9 - full puppeteer, no proxy');
     browser = await puppeteer.launch({
-      headless: chromium.headless,
-      executablePath: execPath,
+      headless: 'new',
       args: [
-        ...chromium.args,
         '--no-sandbox',
         '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
         '--ignore-certificate-errors',
         '--disable-blink-features=AutomationControlled',
       ],
