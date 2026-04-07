@@ -1,9 +1,7 @@
 services:
   - type: web
     name: visapath-eoir-scraper
-    runtime: node
-    buildCommand: npm install
-    startCommand: node index.js
+    runtime: docker
     envVars:
       - key: CAPTCHA_API_KEY
         sync: false
