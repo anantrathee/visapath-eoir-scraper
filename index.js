@@ -52,6 +52,7 @@ app.post('/lookup', async (req, res) => {
         if (btn) btn.click();
       });
       console.log('Clicked I ACCEPT');
+      await page.waitForFunction(() => !!document.querySelector('input[type="tel"], input[type="text"]'), { timeout: 10000 }).catch(() => console.log('Input not found after accept'));
       await new Promise(r => setTimeout(r, 2000));
     } catch(e) { console.log('No disclaimer found'); }
 
