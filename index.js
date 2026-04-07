@@ -7,7 +7,7 @@ const app = express();
 app.use(express.json());
 const solver = new Solver(process.env.CAPTCHA_API_KEY || 'dc371c50f5952790ad18e2617b7e9641');
 const PROXY = 'http://5928d06d6d0c3a97cb03:398ce2c56c9e1c67@gw.dataimpulse.com:823';
-const PROXY_AUTH = { username: '5928d06d6d0c3a97cb03_country-us', password: '398ce2c56c9e1c67' };
+const PROXY_AUTH = { username: '5928d06d6d0c3a97cb03__cr.us', password: '398ce2c56c9e1c67' };
 
 app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '6.0.0' }));
 
@@ -21,7 +21,7 @@ app.get('/test-proxy', async (req, res) => {
       args: [...chromium.args, '--proxy-server=gw.dataimpulse.com:823'],
     });
     const page = await browser.newPage();
-    await page.authenticate({ username: '5928d06d6d0c3a97cb03_country-us', password: '398ce2c56c9e1c67' });
+    await page.authenticate({ username: '5928d06d6d0c3a97cb03__cr.us', password: '398ce2c56c9e1c67' });
     await page.goto('https://api.ipify.org?format=json', { timeout: 15000 });
     const ip = await page.evaluate(() => document.body.innerText);
     res.json({ success: true, ip: JSON.parse(ip) });
