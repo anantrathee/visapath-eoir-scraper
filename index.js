@@ -23,6 +23,49 @@ app.post('/lookup', async (req, res) => {
   try {
     console.log('Looking up A-' + normalized);
 
+    // Try the McVCIS phone API first (no IP blocking)
+    try {
+      const ivrRes = await axios.post('https://acis.eoir.justice.gov/api/mcvcis', 
+        { aNbr: normalized, nationality },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+            'Accept': 'application/json',
+            'Origin': 'https://acis.eoir.justice.gov',
+            'Referer': 'https://acis.eoir.justice.gov/en/caseInformation/',
+          },
+          timeout: 10000,
+        }
+      );
+      if (ivrRes.data) {
+        console.log('McVCIS API success:', JSON.stringify(ivrRes.data).substring(0, 200));
+        return res.json({ success: true, normalized, data: ivrRes.data });
+      }
+    } catch (ivrErr) {
+      console.log('McVCIS failed:', ivrErr.message);
+    }
+
+    // Try caseStatus endpoint
+    try {
+      const csRes = await axios.get(
+        `https://acis.eoir.justice.gov/api/caseStatus/${normalized}?nationality=${encodeURIComponent(nationality)}`,
+        {
+          headers: {
+            'User-Agent': 'okhttp/4.9.0',
+            'Accept': 'application/json',
+          },
+          timeout: 10000,
+        }
+      );
+      if (csRes.data) {
+        console.log('caseStatus API:', JSON.stringify(csRes.data).substring(0, 200));
+        return res.json({ success: true, normalized, data: csRes.data });
+      }
+    } catch (csErr) {
+      console.log('caseStatus failed:', csErr.message);
+    }
+
     // Step 1: Get the page to find sitekey and cookies
     const homeRes = await axios.get('https://acis.eoir.justice.gov/en/caseInformation/', {
       headers: {
