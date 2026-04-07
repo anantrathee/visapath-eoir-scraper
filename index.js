@@ -52,8 +52,12 @@ app.post('/lookup', async (req, res) => {
         if (btn) btn.click();
       });
       console.log('Clicked I ACCEPT');
-      await page.waitForFunction(() => !!document.querySelector('input[type="tel"], input[type="text"]'), { timeout: 10000 }).catch(() => console.log('Input not found after accept'));
-      await new Promise(r => setTimeout(r, 2000));
+      // Navigate directly to case information form after accepting disclaimer
+      await page.goto('https://acis.eoir.justice.gov/en/caseInformation/', {
+        waitUntil: 'networkidle2', timeout: 15000
+      }).catch(() => {});
+      await new Promise(r => setTimeout(r, 3000));
+      console.log('Navigated to case form, title:', await page.title());
     } catch(e) { console.log('No disclaimer found'); }
 
     // Wait for React to render
