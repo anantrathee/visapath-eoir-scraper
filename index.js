@@ -28,10 +28,16 @@ app.post('/lookup', async (req, res) => {
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--ignore-certificate-errors',
+        '--disable-blink-features=AutomationControlled',
       ],
     });
 
     const page = await browser.newPage();
+    // Hide automation
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+      window.chrome = { runtime: {} };
+    });
     await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15');
 
     console.log('Loading ACIS no proxy...');
