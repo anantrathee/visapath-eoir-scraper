@@ -69,20 +69,26 @@ app.post('/lookup', async (req, res) => {
     // Wait for React to render
     await new Promise(r => setTimeout(r, 3000));
     
+    // Wait longer for React to render
+    await new Promise(r => setTimeout(r, 5000));
+    
     const pageInfo = await page.evaluate(() => {
       const sitekey = document.querySelector('[data-sitekey]');
       const input = document.querySelector('input');
       const select = document.querySelector('select');
+      const allInputs = document.querySelectorAll('input, select, button, form');
       return {
         sitekey: sitekey ? sitekey.getAttribute('data-sitekey') : null,
         hasInput: !!input,
         inputType: input ? input.type : null,
         hasSelect: !!select,
+        elementCount: allInputs.length,
+        htmlSnippet: document.documentElement.innerHTML.substring(0, 800),
         bodySnippet: document.body.innerText.substring(0, 300),
       };
     });
     
-    console.log('Page info:', JSON.stringify(pageInfo));
+    console.log('Page info:', JSON.stringify(pageInfo).substring(0, 500));
 
     if (pageInfo.sitekey) {
       console.log('Solving hCaptcha...');
