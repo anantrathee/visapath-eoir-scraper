@@ -17,7 +17,7 @@ async function launchBrowser(useProxy = true) {
     '--no-sandbox',
     '--disable-setuid-sandbox',
   ];
-  if (useProxy) args.push(`--proxy-server=${PROXY_HOST}`);
+  if (useProxy) args.push('--proxy-server=http://' + PROXY_HOST);
   return puppeteer.launch({
     headless: chromium.headless,
     executablePath: await chromium.executablePath(),
