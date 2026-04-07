@@ -41,6 +41,20 @@ app.post('/lookup', async (req, res) => {
 
     console.log('Title:', await page.title());
     
+    // Click I ACCEPT disclaimer if present
+    try {
+      await page.waitForFunction(
+        () => Array.from(document.querySelectorAll('button,a')).some(el => el.innerText.includes('ACCEPT')),
+        { timeout: 5000 }
+      );
+      await page.evaluate(() => {
+        const btn = Array.from(document.querySelectorAll('button,a')).find(el => el.innerText.includes('ACCEPT'));
+        if (btn) btn.click();
+      });
+      console.log('Clicked I ACCEPT');
+      await new Promise(r => setTimeout(r, 2000));
+    } catch(e) { console.log('No disclaimer found'); }
+
     // Wait for React to render
     await new Promise(r => setTimeout(r, 3000));
     
