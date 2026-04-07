@@ -2,7 +2,7 @@ const express = require('express');
 const axios = require('axios');
 const { HttpsProxyAgent } = require('https-proxy-agent');
 
-const PROXY_URL = `http://${process.env.PROXY_LOGIN}:${process.env.PROXY_PASSWORD}@gw.dataimpulse.com:823`;
+const PROXY_URL = `http://${5928d06d6d0c3a97cb03:398ce2c56c9e1c67@gw.dataimpulse.com:823`;
 const proxyAgent = new HttpsProxyAgent(PROXY_URL);
 const cheerio = require('cheerio');
 const { Solver } = require('2captcha-ts');
