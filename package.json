@@ -12,6 +12,7 @@
     "2captcha-ts": "^2.0.0",
     "axios": "^1.6.0",
     "cheerio": "^1.0.0",
-    "https-proxy-agent": "^7.0.0"
+    "https-proxy-agent": "^7.0.0",
+    "puppeteer": "^21.0.0"
   }
 }

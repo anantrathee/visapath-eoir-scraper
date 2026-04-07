@@ -1,176 +1,114 @@
 const express = require('express');
-const axios = require('axios');
-const { HttpsProxyAgent } = require('https-proxy-agent');
-
-const PROXY_URL = "http://5928d06d6d0c3a97cb03:398ce2c56c9e1c67@gw.dataimpulse.com:823";
-const proxyAgent = new HttpsProxyAgent(PROXY_URL);
-const cheerio = require('cheerio');
+const puppeteer = require('puppeteer');
 const { Solver } = require('2captcha-ts');
 
 const app = express();
 app.use(express.json());
+const solver = new Solver(process.env.CAPTCHA_API_KEY || 'dc371c50f5952790ad18e2617b7e9641');
+const PROXY = 'http://5928d06d6d0c3a97cb03:398ce2c56c9e1c67@gw.dataimpulse.com:823';
 
-const solver = new Solver(process.env.CAPTCHA_API_KEY);
-
-app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '2.0.0' }));
-
-app.get('/debug', (req, res) => res.json({ status: 'ok', approach: 'axios+cheerio, no puppeteer' }));
+app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '3.0.0' }));
 
 app.post('/lookup', async (req, res) => {
   const { aNbr, nationality } = req.body;
   if (!aNbr || !nationality) return res.status(400).json({ error: 'aNbr and nationality required' });
-
   const digits = aNbr.replace(/[^0-9]/g, '');
   const normalized = digits.length === 8 ? '0' + digits : digits.padStart(9, '0');
   if (normalized.length !== 9) return res.status(400).json({ error: 'Invalid A-Number' });
 
+  let browser;
   try {
-    console.log('Looking up A-' + normalized);
-
-    // Try the McVCIS phone API first (no IP blocking)
-    try {
-      const ivrRes = await axios.post('https://acis.eoir.justice.gov/api/mcvcis', 
-        { aNbr: normalized, nationality },
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-            'Accept': 'application/json',
-            'Origin': 'https://acis.eoir.justice.gov',
-            'Referer': 'https://acis.eoir.justice.gov/en/caseInformation/',
-          },
-          timeout: 10000,
-        }
-      );
-      if (ivrRes.data) {
-        console.log('McVCIS API success:', JSON.stringify(ivrRes.data).substring(0, 200));
-        return res.json({ success: true, normalized, data: ivrRes.data });
-      }
-    } catch (ivrErr) {
-      console.log('McVCIS failed:', ivrErr.message);
-    }
-
-    // Try caseStatus endpoint
-    try {
-      const csRes = await axios.get(
-        `https://acis.eoir.justice.gov/api/caseStatus/${normalized}?nationality=${encodeURIComponent(nationality)}`,
-        {
-          headers: {
-            'User-Agent': 'okhttp/4.9.0',
-            'Accept': 'application/json',
-          },
-          timeout: 10000,
-        }
-      );
-      if (csRes.data) {
-        console.log('caseStatus API:', JSON.stringify(csRes.data).substring(0, 200));
-        return res.json({ success: true, normalized, data: csRes.data });
-      }
-    } catch (csErr) {
-      console.log('caseStatus failed:', csErr.message);
-    }
-
-    // Step 1: Get the page to find sitekey and cookies
-    const homeRes = await axios.get('https://acis.eoir.justice.gov/en/caseInformation/', {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-      },
-      httpsAgent: proxyAgent,
-      timeout: 20000,
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+        '--no-zygote', '--single-process', '--disable-gpu',
+        `--proxy-server=${PROXY}`,
+      ],
     });
 
-    const cookies = homeRes.headers['set-cookie']?.join('; ') || '';
-    const $ = cheerio.load(homeRes.data);
-    const sitekey = $('[data-sitekey]').attr('data-sitekey');
-    console.log('Sitekey:', sitekey, 'Cookies:', cookies.substring(0, 50));
+    const page = await browser.newPage();
+    await page.authenticate({ username: '5928d06d6d0c3a97cb03', password: '398ce2c56c9e1c67' });
+    await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15');
 
-    let captchaToken = '';
+    await page.goto('https://acis.eoir.justice.gov/en/caseInformation/', {
+      waitUntil: 'networkidle2', timeout: 30000
+    });
+
+    const sitekey = await page.evaluate(() => {
+      const el = document.querySelector('[data-sitekey]');
+      return el ? el.getAttribute('data-sitekey') : null;
+    });
+
     if (sitekey) {
       console.log('Solving captcha...');
-      try {
-        const solution = await solver.hcaptcha({
-          pageurl: 'https://acis.eoir.justice.gov/en/caseInformation/',
-          sitekey,
-        });
-        captchaToken = solution.data;
-        console.log('Captcha solved');
-      } catch (e) {
-        console.error('Captcha failed:', e.message);
+      const solution = await solver.hcaptcha({
+        pageurl: 'https://acis.eoir.justice.gov/en/caseInformation/',
+        sitekey,
+      });
+      await page.evaluate((token) => {
+        const t = document.querySelector('[name="h-captcha-response"]');
+        if (t) { t.value = token; t.dispatchEvent(new Event('change')); }
+        const el = document.querySelector('.h-captcha');
+        if (el && el.dataset.callback && window[el.dataset.callback]) window[el.dataset.callback](token);
+      }, solution.data);
+    }
+
+    const inputs = await page.$$('input');
+    for (const input of inputs) {
+      const type = await input.evaluate(el => el.type);
+      if (type === 'tel' || type === 'text') {
+        await input.click({ clickCount: 3 });
+        await input.type(normalized, { delay: 50 });
+        break;
       }
     }
 
-    // Step 2: Submit form
-    const params = new URLSearchParams();
-    params.append('aNbr', normalized);
-    params.append('nationality', nationality);
-    if (captchaToken) params.append('h-captcha-response', captchaToken);
+    const selects = await page.$$('select');
+    for (const sel of selects) {
+      const matched = await sel.evaluate((el, nat) => {
+        const o = Array.from(el.options).find(o => o.text.toLowerCase().includes(nat.toLowerCase()));
+        if (o) { el.value = o.value; el.dispatchEvent(new Event('change', { bubbles: true })); return o.text; }
+        return null;
+      }, nationality);
+      if (matched) break;
+    }
 
-    const lookupRes = await axios.post('https://acis.eoir.justice.gov/en/caseInformation/', params, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Referer': 'https://acis.eoir.justice.gov/en/caseInformation/',
-        'Cookie': cookies,
-        'Origin': 'https://acis.eoir.justice.gov',
-        'Accept': 'text/html,application/xhtml+xml,*/*',
-      },
-      httpsAgent: proxyAgent,
-      timeout: 20000,
-      maxRedirects: 5,
+    const btn = await page.$('button[type="submit"]') || await page.$('button');
+    if (btn) await btn.click();
+
+    await page.waitForFunction(() => {
+      const t = document.body.innerText;
+      return t.includes('Hearing') || t.includes('No case') || t.includes('pending') || t.includes('CLOSED');
+    }, { timeout: 15000 }).catch(() => {});
+
+    const result = await page.evaluate(() => {
+      const b = document.body.innerText;
+      if (b.toLowerCase().includes('no case found')) return { found: false, message: 'No case found.' };
+      const d = b.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b/i);
+      const t = b.match(/\b\d{1,2}:\d{2}\s*(?:AM|PM)\b/i);
+      const j = b.match(/(?:Judge|JUDGE)[^\n]*\n([^\n]+)/i);
+      const a = b.match(/(?:Court Address|COURT ADDRESS)[^\n]*\n([^\n]+)/i);
+      const s = b.match(/(administratively CLOSED|This case is pending|GRANTED|DENIED)/i);
+      const tp = b.match(/(INDIVIDUAL|MASTER|IN PERSON|TELEPHONIC|VIDEO)/i);
+      return {
+        found: true,
+        nextHearing: d ? { date: d[0], time: t ? t[0] : null, type: tp ? tp[1] : null } : null,
+        judge: j ? j[1].trim() : null,
+        courtAddress: a ? a[1].trim() : null,
+        status: s ? s[1].trim() : 'Pending',
+        rawText: b.substring(0, 1500),
+      };
     });
 
-    const $r = cheerio.load(lookupRes.data);
-    const bodyText = $r('body').text();
-    console.log('Response length:', bodyText.length);
-    console.log('Body preview:', bodyText.substring(0, 300));
-
-    // Check for API endpoint in the response JS
-    const apiMatch = lookupRes.data.match(/fetch\(['"]([^'"]*caseInformation[^'"]+)['"]/);
-    console.log('API match:', apiMatch ? apiMatch[1] : 'none');
-
-    if (bodyText.toLowerCase().includes('no case found')) {
-      return res.json({ success: true, normalized, data: { found: false, message: 'No case found.' } });
-    }
-
-    // Try direct API call
-    try {
-      const apiRes = await axios.get(`https://acis.eoir.justice.gov/api/caseInformation?aNbr=${normalized}&nationality=${encodeURIComponent(nationality)}`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
-          'Accept': 'application/json',
-          'Referer': 'https://acis.eoir.justice.gov/en/caseInformation/',
-          'Cookie': cookies,
-        },
-        timeout: 10000,
-      });
-      console.log('API response:', JSON.stringify(apiRes.data).substring(0, 300));
-      return res.json({ success: true, normalized, data: { found: true, raw: apiRes.data } });
-    } catch (apiErr) {
-      console.log('Direct API failed:', apiErr.message);
-    }
-
-    const dateMatch = bodyText.match(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},\s+\d{4}\b/i);
-    const judgeMatch = bodyText.match(/(?:Judge|JUDGE)[^\n]*\n([^\n]+)/i);
-
-    if (dateMatch || judgeMatch) {
-      return res.json({ success: true, normalized, data: {
-        found: true,
-        nextHearing: dateMatch ? { date: dateMatch[0] } : null,
-        judge: judgeMatch ? judgeMatch[1].trim() : null,
-        rawText: bodyText.substring(0, 1000),
-      }});
-    }
-
-    // Fallback
-    return res.json({ success: false, fallback: true, normalized, debug: bodyText.substring(0, 500) });
-
+    res.json({ success: true, normalized, data: result });
   } catch (err) {
     console.error('Error:', err.message);
-    return res.json({ success: false, error: err.message, fallback: true, normalized });
+    res.json({ success: false, error: err.message, fallback: true, normalized });
+  } finally {
+    if (browser) await browser.close();
   }
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log('EOIR scraper v2 on port ' + PORT));
+app.listen(PORT, () => console.log('EOIR scraper v3 on port ' + PORT));
