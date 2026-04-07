@@ -46,7 +46,7 @@ app.get('/test-acis-noproxy', async (req, res) => {
 app.get('/test-https', async (req, res) => {
   let browser;
   try {
-    browser = await launchBrowser(true);
+    browser = await launchBrowser(false);
     const page = await browser.newPage();
     await page.authenticate({ username: PROXY_USER, password: PROXY_PASS });
     await page.goto('https://www.google.com', { timeout: 20000 });
@@ -62,7 +62,7 @@ app.get('/test-https', async (req, res) => {
 app.get('/test-proxy', async (req, res) => {
   let browser;
   try {
-    browser = await launchBrowser(true);
+    browser = await launchBrowser(false);
     const page = await browser.newPage();
     await page.authenticate({ username: PROXY_USER, password: PROXY_PASS });
     await page.goto('https://api.ipify.org?format=json', { timeout: 20000 });
@@ -83,9 +83,8 @@ app.post('/lookup', async (req, res) => {
 
   let browser;
   try {
-    browser = await launchBrowser(true);
+    browser = await launchBrowser(false);
     const page = await browser.newPage();
-    await page.authenticate({ username: PROXY_USER, password: PROXY_PASS });
     await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15');
     await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
 
