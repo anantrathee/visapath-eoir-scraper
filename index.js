@@ -11,6 +11,27 @@ const PROXY_AUTH = { username: '5928d06d6d0c3a97cb03', password: '398ce2c56c9e1c
 
 app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '6.0.0' }));
 
+app.get('/test-proxy', async (req, res) => {
+  let browser;
+  try {
+    const execPath = await chromium.executablePath();
+    browser = await puppeteer.launch({
+      headless: chromium.headless,
+      executablePath: execPath,
+      args: [...chromium.args, '--proxy-server=gw.dataimpulse.com:823'],
+    });
+    const page = await browser.newPage();
+    await page.authenticate({ username: '5928d06d6d0c3a97cb03', password: '398ce2c56c9e1c67' });
+    await page.goto('https://api.ipify.org?format=json', { timeout: 15000 });
+    const ip = await page.evaluate(() => document.body.innerText);
+    res.json({ success: true, ip: JSON.parse(ip) });
+  } catch(err) {
+    res.json({ success: false, error: err.message });
+  } finally {
+    if (browser) await browser.close();
+  }
+});
+
 app.post('/lookup', async (req, res) => {
   const { aNbr, nationality } = req.body;
   if (!aNbr || !nationality) return res.status(400).json({ error: 'required' });
