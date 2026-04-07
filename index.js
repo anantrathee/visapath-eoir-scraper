@@ -18,7 +18,7 @@ app.get('/test-proxy', async (req, res) => {
     browser = await puppeteer.launch({
       headless: chromium.headless,
       executablePath: execPath,
-      args: [...chromium.args, '--proxy-server=gw.dataimpulse.com:823'],
+      args: [...chromium.args, '--proxy-server=socks5://gw.dataimpulse.com:823'],
     });
     const page = await browser.newPage();
     await page.authenticate({ username: '5928d06d6d0c3a97cb03__cr.us', password: '398ce2c56c9e1c67' });
@@ -45,7 +45,7 @@ app.post('/lookup', async (req, res) => {
     browser = await puppeteer.launch({
       headless: chromium.headless,
       executablePath: execPath,
-      args: [...chromium.args, '--proxy-server=gw.dataimpulse.com:823'],
+      args: [...chromium.args, '--proxy-server=socks5://gw.dataimpulse.com:823'],
     });
 
     const page = await browser.newPage();
