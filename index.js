@@ -95,11 +95,20 @@ app.post('/lookup', async (req, res) => {
 
     const title = await page.title();
     console.log('Title:', title);
+    
+    // Wait for React app to fully render
+    await new Promise(r => setTimeout(r, 3000));
+    
+    // Take screenshot for debugging
+    const html = await page.evaluate(() => document.body.innerHTML.substring(0, 500));
+    console.log('Page HTML preview:', html);
 
     const sitekey = await page.evaluate(() => {
       const el = document.querySelector('[data-sitekey]');
       return el ? el.getAttribute('data-sitekey') : null;
     });
+    
+    console.log('Sitekey:', sitekey);
 
     if (sitekey) {
       console.log('Solving captcha...');
