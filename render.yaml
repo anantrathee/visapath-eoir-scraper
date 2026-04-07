@@ -5,7 +5,5 @@ services:
     buildCommand: npm install
     startCommand: node index.js
     envVars:
-      - key: PUPPETEER_SKIP_CHROMIUM_DOWNLOAD
-        value: "false"
       - key: CAPTCHA_API_KEY
         sync: false
