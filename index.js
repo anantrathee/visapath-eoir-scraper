@@ -6,23 +6,34 @@ const { Solver } = require('2captcha-ts');
 const app = express();
 app.use(express.json());
 const solver = new Solver(process.env.CAPTCHA_API_KEY || 'dc371c50f5952790ad18e2617b7e9641');
-const PROXY = 'http://5928d06d6d0c3a97cb03:398ce2c56c9e1c67@gw.dataimpulse.com:823';
-const PROXY_AUTH = { username: '5928d06d6d0c3a97cb03__cr.us', password: '398ce2c56c9e1c67' };
+const PROXY_HOST = 'gw.dataimpulse.com:823';
+const PROXY_USER = '5928d06d6d0c3a97cb03__cr.us';
+const PROXY_PASS = '398ce2c56c9e1c67';
 
-app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '6.0.0' }));
+async function launchBrowser(useProxy = true) {
+  const args = [
+    ...chromium.args,
+    '--ignore-certificate-errors',
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+  ];
+  if (useProxy) args.push(`--proxy-server=${PROXY_HOST}`);
+  return puppeteer.launch({
+    headless: chromium.headless,
+    executablePath: await chromium.executablePath(),
+    args,
+  });
+}
+
+app.get('/', (req, res) => res.json({ status: 'EOIR scraper running', version: '7.0.0' }));
 
 app.get('/test-proxy', async (req, res) => {
   let browser;
   try {
-    const execPath = await chromium.executablePath();
-    browser = await puppeteer.launch({
-      headless: chromium.headless,
-      executablePath: execPath,
-      args: [...chromium.args, '--proxy-server=http://gw.dataimpulse.com:8800'],
-    });
+    browser = await launchBrowser(true);
     const page = await browser.newPage();
-    await page.authenticate({ username: '5928d06d6d0c3a97cb03__cr.us', password: '398ce2c56c9e1c67' });
-    await page.goto('https://api.ipify.org?format=json', { timeout: 15000 });
+    await page.authenticate({ username: PROXY_USER, password: PROXY_PASS });
+    await page.goto('https://api.ipify.org?format=json', { timeout: 20000 });
     const ip = await page.evaluate(() => document.body.innerText);
     res.json({ success: true, ip: JSON.parse(ip) });
   } catch(err) {
@@ -40,19 +51,13 @@ app.post('/lookup', async (req, res) => {
 
   let browser;
   try {
-    const execPath = await chromium.executablePath();
-    console.log('Chrome path:', execPath);
-    browser = await puppeteer.launch({
-      headless: chromium.headless,
-      executablePath: execPath,
-      args: [...chromium.args, '--proxy-server=http://gw.dataimpulse.com:8800'],
-    });
-
+    browser = await launchBrowser(true);
     const page = await browser.newPage();
-    await page.authenticate(PROXY_AUTH);
+    await page.authenticate({ username: PROXY_USER, password: PROXY_PASS });
     await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15');
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
 
-    console.log('Loading ACIS...');
+    console.log('Loading ACIS with proxy...');
     await page.goto('https://acis.eoir.justice.gov/en/caseInformation/', {
       waitUntil: 'networkidle2', timeout: 30000
     });
@@ -127,6 +132,7 @@ app.post('/lookup', async (req, res) => {
       };
     });
 
+    console.log('Result:', JSON.stringify(result));
     res.json({ success: true, normalized, data: result });
   } catch (err) {
     console.error('Error:', err.message);
@@ -137,4 +143,4 @@ app.post('/lookup', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log('EOIR scraper v6 on port ' + PORT));
+app.listen(PORT, () => console.log('EOIR scraper v7 on port ' + PORT));
